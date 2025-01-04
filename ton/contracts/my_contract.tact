@@ -26,4 +26,8 @@ contract MyContract with Ownable, Deployable {
         self.requireOwner();
         send(SendParameters{to: sender(), value: myBalance() - FEE, mode: SendIgnoreErrors});
     }
+
+    get fun returnDonaters(): map<Address, DonaterStruct> {
+        return self.donaters
+    }
 }
