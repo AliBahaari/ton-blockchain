@@ -1,16 +1,21 @@
-import { TonConnectButton, useTonConnectUI } from "@tonconnect/ui-react";
-import { getHttpEndpoint } from "@orbs-network/ton-access";
-import { TonClient } from "@ton/ton";
-import { Address, OpenedContract, SenderArguments, toNano } from "@ton/core";
-import { MyContract } from "./contracts/tact_MyContract";
-import { useEffect, useMemo, useState } from "react";
-import "./App.css";
+import { TonConnectButton, useTonConnectUI } from '@tonconnect/ui-react'
+import { getHttpEndpoint } from '@orbs-network/ton-access'
+import { TonClient } from '@ton/ton'
+import {
+  Address,
+  fromNano,
+  OpenedContract,
+  SenderArguments,
+  toNano,
+} from '@ton/core'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Donate } from './contracts/Donate'
 
 function App() {
-  const [tonConnectUI] = useTonConnectUI();
-  const [contract, setContract] = useState<OpenedContract<MyContract> | null>(
-    null
-  );
+  const [tonConnectUI] = useTonConnectUI()
+  const [donateContract, setDonateContract] =
+    useState<OpenedContract<Donate> | null>(null)
 
   const tonConnect = useMemo(() => {
     return {
@@ -21,52 +26,83 @@ function App() {
               {
                 address: args.to.toString(),
                 amount: args.value.toString(),
-                payload: args.body?.toBoc().toString("base64"),
+                payload: args.body?.toBoc().toString('base64'),
               },
             ],
-            validUntil: Date.now() + 5 * 60 * 1000, // 5 minutes for user to approve
-          });
+            validUntil: Date.now() + 5 * 60 * 1000,
+          })
         },
       },
       connected: tonConnectUI.connected,
-    };
-  }, [tonConnectUI]);
+    }
+  }, [tonConnectUI])
 
   useEffect(() => {
     async function main() {
-      const endpoint = await getHttpEndpoint({ network: "testnet" });
+      const endpoint = await getHttpEndpoint({ network: 'testnet' })
       const client = new TonClient({
         endpoint,
-      });
-      const contract = new MyContract(
-        Address.parse("kQDo3VSHrUXKvBru-Na3wfV1kgu52yFljfSmXif5yzF4TGQ9")
-      );
-      const myContract = client.open(contract) as OpenedContract<MyContract>;
+      })
+      const contract = new Donate(
+        Address.parse('EQD0WCcCAKYk9qzI2tufxGS682qt3sSrbCtxx4RNpZG3s4AO')
+      )
+      const openedContract = client.open(contract) as OpenedContract<Donate>
 
-      setContract(myContract);
+      setDonateContract(openedContract)
     }
 
-    main();
-  });
+    main()
+  }, [])
 
   async function handleDonate() {
-    if (contract) {
-      console.log((await contract.getReturnDonaters()).values());
-
-      await contract.send(
+    if (donateContract) {
+      await donateContract.send(
         tonConnect.sender,
         { bounce: true, value: toNano(0.3) },
-        { $$type: "DonateMessage", fullName: "Ali" }
-      );
+        { $$type: 'DonateMessage', fullName: 'Ali' }
+      )
     }
   }
 
+  const { data = [], isFetching } = useQuery({
+    queryKey: ['donors'],
+    queryFn: async () => {
+      if (donateContract) {
+        return (await donateContract.getReturnDonors()).values()
+      } else {
+        return []
+      }
+    },
+    refetchInterval: 3000,
+  })
+
   return (
-    <div className="flex justify-center">
+    <div className="flex flex-col justify-center items-center gap-10 h-screen">
       <TonConnectButton />
-      <button onClick={handleDonate}>Donate</button>
+
+      <button
+        className="bg-black text-white px-10 py-2 rounded-md"
+        onClick={handleDonate}
+      >
+        Donate 0.3
+      </button>
+
+      {isFetching ? (
+        <span>Loading...</span>
+      ) : (
+        <>
+          {data.length > 0 &&
+            data.map((i, index) => (
+              <div key={index} className="flex flex-row items-center gap-2">
+                <span>{i.fullName}</span>
+                <span>-</span>
+                <span>{fromNano(i.amount).toString()} TON</span>
+              </div>
+            ))}
+        </>
+      )}
     </div>
-  );
+  )
 }
 
-export default App;
+export default App

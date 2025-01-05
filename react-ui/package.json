@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@orbs-network/ton-access": "^2.3.3",
+    "@tanstack/react-query": "^5.62.15",
     "@ton/core": "^0.59.1",
     "@ton/crypto": "^3.3.0",
     "@ton/ton": "^15.1.0",
